@@ -310,6 +310,7 @@ void writeVTK(MultiBlockLattice3D<T,NSDESCRIPTOR>& nsLattice,
     //    therefore be computed with the function "computeDensity".
     vtkOut.writeData<float>(*computeDensity(adLattice), "VolFrac", (T)1);
     //vtkOut.writeData<3, float>(*computeVelocity(adLattice), "ADVel", dx/dt);
+
 }
 
 void writeGif(MultiBlockLattice3D<T,NSDESCRIPTOR>& nsLattice,
@@ -337,17 +338,32 @@ void writeGif(MultiBlockLattice3D<T,NSDESCRIPTOR>& nsLattice,
 }
 
 plint particleTimeFactor = 1;
-T particleProbabilityPerCell = 1;   // Probability of injecting a particle into an injection cell at each time step.
-T cutOffSpeedSqr = 1.e-3; // Criterion to eliminate particles with very small velocity.
+T particleProbabilityPerCell = 1e-3;   // Probability of injecting a particle into an injection cell at each time step.
+T cutOffSpeedSqr = 1.e-8; // Criterion to eliminate particles with very small velocity.
 
 
 class BoxInjection {
 public:
-    BoxInjection ()
+    BoxInjection (RayleighTaylorFlowParam<T,NSDESCRIPTOR,ADESCRIPTOR> &parameters_)
+    : parameters(parameters_)
     { }
-    bool operator()(Array<T,3> const& pos) const {
-        return (true);
+    bool operator()(Array<T,3> const& pos ) const {
+      plint nx = parameters.getNx();
+      plint ny = parameters.getNy();
+      plint nz = parameters.getNz();
+      bool inj;
+
+        if (pos[0] < nx && pos[0] > 0) {
+          if (pos[1] < ny && pos[1] > 0) {
+            if (pos[2] < nz && pos[2] > 0) {
+              inj=true;
+            }
+          }
+        }
+        return (inj);
     }
+  private:
+    RayleighTaylorFlowParam<T,NSDESCRIPTOR,ADESCRIPTOR> &parameters;
 
 };
 
@@ -382,6 +398,7 @@ int main(int argc, char *argv[])
             lx,
             ly,
             lz );
+
 
 
     T rho0=1.0;
@@ -451,9 +468,9 @@ int main(int argc, char *argv[])
             //particles
 
 
-                      MultiParticleField3D<DenseParticleField3D<T,ADESCRIPTOR> >* particles=0;
-                      particles = new MultiParticleField3D<DenseParticleField3D<T,ADESCRIPTOR> > (
-                          adLattice.getMultiBlockManagement(),
+                      MultiParticleField3D<DenseParticleField3D<T,NSDESCRIPTOR> >* particles=0;
+                      particles = new MultiParticleField3D<DenseParticleField3D<T,NSDESCRIPTOR> > (
+                          nsLattice.getMultiBlockManagement(),
                           defaultMultiBlockPolicy3D().getCombinedStatistics() );
 
                       std::vector<MultiBlock3D*> particleArg;
@@ -461,34 +478,34 @@ int main(int argc, char *argv[])
 
                       std::vector<MultiBlock3D*> particleFluidArg;
                       particleFluidArg.push_back(particles);
-                      particleFluidArg.push_back(&adLattice);
+                      particleFluidArg.push_back(&nsLattice);
 
                       // Functional that advances the particles to their new position at each
                       //   predefined time step.
-                      integrateProcessingFunctional (
-                              new AdvanceParticlesEveryWhereFunctional3D<T,ADESCRIPTOR>(cutOffSpeedSqr),
-                              adLattice.getBoundingBox(), particleArg, 0);
+                      applyProcessingFunctional (
+                              new AdvanceParticlesEveryWhereFunctional3D<T,NSDESCRIPTOR>(cutOffSpeedSqr),
+                              nsLattice.getBoundingBox(), particleArg);
                       // Functional that assigns the particle velocity according to the particle's
                       //   position in the fluid.
-                      integrateProcessingFunctional (
-                              new FluidToParticleCoupling3D<T,ADESCRIPTOR>((T)particleTimeFactor),
-                              adLattice.getBoundingBox(), particleFluidArg, 1 );
+                      applyProcessingFunctional (
+                              new FluidToParticleCoupling3D<T,NSDESCRIPTOR>((T)particleTimeFactor),
+                              nsLattice.getBoundingBox(), particleFluidArg );
 
                     // Definition of simple mass-less particles.
-                    Particle3D<T,ADESCRIPTOR>* particleTemplate=0;
-                    particleTemplate = new PointParticle3D<T,ADESCRIPTOR>(0, Array<T,3>(0.,0.,0.), Array<T,3>(0.,0.,0.));
+                    Particle3D<T,NSDESCRIPTOR>* particleTemplate=0;
+                    particleTemplate = new PointParticle3D<T,NSDESCRIPTOR>(0, Array<T,3>(0.,0.,0.), Array<T,3>(0.,0.,0.));
 
+
+                    //integrateProcessingFunctional (
+                      //      new AnalyticalInjectRandomParticlesFunctional3D<T,NSDESCRIPTOR,BoxInjection> (
+                        //        particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
+                        //    upper, particleArg, 0 );
 
                     integrateProcessingFunctional (
-                            new AnalyticalInjectRandomParticlesFunctional3D<T,ADESCRIPTOR,BoxInjection> (
-                                particleTemplate, particleProbabilityPerCell, BoxInjection() ),
-                            upper, particleArg, 0 );
-
-                    integrateProcessingFunctional (
-                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    new AbsorbParticlesFunctional3D<T,NSDESCRIPTOR>,
                                     absorb, particleArg, 0 );
 
-                    particles->executeInternalProcessors();
+
 
 
 
@@ -500,6 +517,7 @@ int main(int argc, char *argv[])
     plint evalTime =5000;
     plint iT = 0;
     plint maxT = 4000000;
+
     //plint statIter = 1;
     plint saveIter = 5000;
     util::ValueTracer<T> converge((T)1,(T)100,1.0e-3);
@@ -508,6 +526,11 @@ int main(int argc, char *argv[])
     // Main loop over time iterations.
     for (iT = 0; iT <= maxT; ++iT)
     {
+
+      if (iT==1) {
+        AnalyticalInjectRandomParticlesFunctional3D<T,NSDESCRIPTOR,BoxInjection> (
+                  particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) );
+      }
         if (iT == (evalTime))
         {
             T tEval = global::timer("simTime").stop();
@@ -571,6 +594,8 @@ int main(int argc, char *argv[])
         adLattice.collideAndStream();
         deLattice.collideAndStream();
         nsLattice.collideAndStream();
+        particles->executeInternalProcessors();
+
     }
 
     writeGif(nsLattice,adLattice,deLattice, iT);
