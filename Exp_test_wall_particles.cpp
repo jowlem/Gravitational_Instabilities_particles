@@ -489,9 +489,9 @@ int main(int argc, char *argv[])
                               adLattice.getBoundingBox(), particleArg);
                       // Functional that assigns the particle velocity according to the particle's
                       //   position in the fluid.
-                      applyProcessingFunctional (
-                              new VelocityToParticleCoupling3D<T,ADESCRIPTOR>((T)particleTimeFactor),
-                              adLattice.getBoundingBox(), particleFluidArg );
+                      integrateProcessingFunctional (
+                              new FluidToParticleCoupling3D<T,ADESCRIPTOR>((T)particleTimeFactor),
+                              adLattice.getBoundingBox(), particleFluidArg, 0 );
 
 
                     // Definition of simple mass-less particles.
@@ -532,7 +532,7 @@ int main(int argc, char *argv[])
     for (iT = 0; iT <= maxT; ++iT)
     {
 
-      if (iT == 1) {
+      if (iT == 2) {
         applyProcessingFunctional (
                 new AnalyticalInjectRandomParticlesFunctional3D<T,ADESCRIPTOR,BoxInjection> (
                     particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
@@ -595,7 +595,7 @@ int main(int argc, char *argv[])
             pcout << "Write particle output file." << endl;
             writeAsciiParticlePos(*particles, "particle_positions.dat");
             T dx = parameters.getDeltaX();
-            writeParticleVtk(*particles, "particles.vtk", dx, Array<T,3> (0., 0., 0.), 2000);
+            writeParticleVtk(*particles, "particles.vtk", dx, 2000);
         }
 
         // Lattice Boltzmann iteration step.
