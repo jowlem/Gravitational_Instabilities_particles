@@ -341,7 +341,7 @@ void writeGif(MultiBlockLattice3D<T,NSDESCRIPTOR>& nsLattice,
 
 plint particleTimeFactor = 1;
 T particleProbabilityPerCell = 1;   // Probability of injecting a particle into an injection cell at each time step.
-T cutOffSpeedSqr = 1.e-4; // Criterion to eliminate particles with very small velocity.
+T cutOffSpeedSqr = 1.0e-5; // Criterion to eliminate particles with very small velocity.
 
 
 class BoxInjection {
@@ -362,6 +362,7 @@ public:
             }
           }
         }
+        else{inj=false;}
         return (inj);
     }
   private:
@@ -416,7 +417,9 @@ int main(int argc, char *argv[])
     plint ny = parameters.getNy();
     plint nz = parameters.getNz();
 
+
     Box3D upper(1, nx, 1, ny, 2*(nz-1)/3+1, nz);
+    Box3D lower(1, nx, 1, ny, 0, 2*(nz-1)/3);
     Box3D absorb(1,nx,1,ny,1,1);
 
     T nsOmega = parameters.getSolventOmega();
@@ -469,6 +472,10 @@ int main(int argc, char *argv[])
 
             //particles
 
+                    Box3D injectionDomain(adLattice.getBoundingBox());
+                    injectionDomain.z0 = 2*(nz-1)/3+1;
+                    injectionDomain.z1 = nz-1;
+
 
                       MultiParticleField3D<DenseParticleField3D<T,ADESCRIPTOR> >* particles=0;
                       particles = new MultiParticleField3D<DenseParticleField3D<T,ADESCRIPTOR> > (
@@ -484,14 +491,14 @@ int main(int argc, char *argv[])
 
                       // Functional that advances the particles to their new position at each
                       //   predefined time step.
-                      applyProcessingFunctional (
+                      integrateProcessingFunctional (
                               new AdvanceParticlesEveryWhereFunctional3D<T,ADESCRIPTOR>(cutOffSpeedSqr),
-                              adLattice.getBoundingBox(), particleArg);
+                              adLattice.getBoundingBox(), particleArg, 0);
                       // Functional that assigns the particle velocity according to the particle's
                       //   position in the fluid.
                       integrateProcessingFunctional (
                               new FluidToParticleCoupling3D<T,ADESCRIPTOR>((T)particleTimeFactor),
-                              adLattice.getBoundingBox(), particleFluidArg, 0 );
+                              adLattice.getBoundingBox(), particleFluidArg, 1);
 
 
                     // Definition of simple mass-less particles.
@@ -504,9 +511,11 @@ int main(int argc, char *argv[])
                         //        particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
                         //    upper, particleArg, 0 );
 
-                    applyProcessingFunctional (
+                    integrateProcessingFunctional (
                                     new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
-                                    absorb, particleArg);
+                                    absorb, particleArg, 0);
+
+
 
 
 
@@ -532,11 +541,13 @@ int main(int argc, char *argv[])
     for (iT = 0; iT <= maxT; ++iT)
     {
 
-      if (iT == 2) {
-        applyProcessingFunctional (
+      if (iT == 10) {
+        integrateProcessingFunctional (
                 new AnalyticalInjectRandomParticlesFunctional3D<T,ADESCRIPTOR,BoxInjection> (
                     particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
-                upper, particleArg);
+                injectionDomain, particleArg, 0);
+
+                particles->executeInternalProcessors();
       }
         if (iT == (evalTime))
         {
@@ -546,36 +557,7 @@ int main(int argc, char *argv[])
             pcout << "Remaining " << (plint)remainTime << " hours, and ";
             pcout << (plint)((T)60*(remainTime - (T)((plint)remainTime))+0.5) << " minutes." << endl;
         }
-//        if (iT == statIter)<100
-//        {
 //
-//		Kappa=0;
-//            int zDirection = 2;
-//            T nusselt = computeNusseltNumber (
-//                            nsLattice, adLattice,
-//                            nsLattice.getBoundingBox(),
-//                            zDirection, parameters.getDeltaX(),
-//                            param125eters.getLatticeKappa(), parameters.getDeltaTemperature());
-//            converge.takeValue(nusselt,true);
-//        }
-//        if (converge.hasConverged())
-//        {
-//            if (!convergedOnce)
-//            {
-//                convergedOnce = true;
-//                converge.resetValues();
-//                converge.setEpsilon(1.0e-14);
-//                applyProcessingFunctional(
-//                    new PerturbVolFracityProcessor3D<T,NSDESCRIPTOR,ADESCRIPTOR>(parameters),
-//                    adLattice.getBoundingBox(),adLattice);
-//                pcout << "Intermetiate convergence.\n";
-//            }
-//            else
-//            {
-//                pcout << "Simulation is over.\n";
-//                break;
-//            }
-//        }
 
 
         if (iT % saveIter == 0)
@@ -583,6 +565,7 @@ int main(int argc, char *argv[])
 
           pcout << "Number of particles in the tank: "
                 << countParticles(*particles, particles->getBoundingBox()) << std::endl;
+
             pcout << iT * parameters.getDeltaT() << " : Writing VTK." << endl;
             writeVTK(nsLattice, adLattice,deLattice, parameters, iT);
             //pcout << "The NS average energy is " << computeAverageEnergy(nsLattice, upper) << endl;
@@ -593,9 +576,9 @@ int main(int argc, char *argv[])
             pcout << "Write visualization files." << std::endl;
             VtkImageOutput3D<T> vtkOut("volume", 1.);
             pcout << "Write particle output file." << endl;
-            writeAsciiParticlePos(*particles, "particle_positions.dat");
             T dx = parameters.getDeltaX();
-            writeParticleVtk(*particles, "particles.vtk", dx, 2000);
+            writeAsciiParticlePos(*particles, "particle_positions.dat", dx);
+            writeParticleVtk(*particles, "particles_pos.vtk", dx, 5000);
         }
 
         // Lattice Boltzmann iteration step.
@@ -605,9 +588,6 @@ int main(int argc, char *argv[])
         particles->executeInternalProcessors();
 
 
-        particleArg.push_back(particles);
-        particleFluidArg.push_back(particles);
-        particleFluidArg.push_back(&adLattice);
 
     }
 
