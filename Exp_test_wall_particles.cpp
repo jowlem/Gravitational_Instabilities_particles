@@ -341,7 +341,7 @@ void writeGif(MultiBlockLattice3D<T,NSDESCRIPTOR>& nsLattice,
 
 plint particleTimeFactor = 1;
 T particleProbabilityPerCell = 1;   // Probability of injecting a particle into an injection cell at each time step.
-T cutOffSpeedSqr = 1.0e-5; // Criterion to eliminate particles with very small velocity.
+T cutOffSpeedSqr = 1e-6; // Criterion to eliminate particles with very small velocity.
 
 
 class BoxInjection {
@@ -355,14 +355,13 @@ public:
       plint nz = parameters.getNz();
       bool inj;
 
-        if (pos[0] < nx && pos[0] > 0) {
-          if (pos[1] < ny && pos[1] > 0) {
-            if (pos[2] < nz && pos[2] > 2*(nz-1)/3+1) {
+        if (pos[0] < nx-1 && pos[0] > 1) {
+          if (pos[1] < ny-1 && pos[1] > 1) {
+            if (pos[2] < nz-1 && pos[2] > 1) {
               inj=true;
             }
           }
         }
-        else{inj=false;}
         return (inj);
     }
   private:
@@ -420,7 +419,14 @@ int main(int argc, char *argv[])
 
     Box3D upper(1, nx, 1, ny, 2*(nz-1)/3+1, nz);
     Box3D lower(1, nx, 1, ny, 0, 2*(nz-1)/3);
-    Box3D absorb(1,nx,1,ny,1,1);
+    Box3D bottom(0,nx-1,0,ny-1,0,0);
+    Box3D top(0,nx-1,0,ny-1,nz-1,nz-1);
+
+    Box3D front(nx-1,nx-1,0,ny-1,1,nz-2);
+    Box3D back(0,0,0,ny-1,1,nz-2);
+
+    Box3D left(0,nx-1,0,0,1,nz-2);
+    Box3D right(0,nx-1,ny-1,ny-1,1,nz-2);
 
     T nsOmega = parameters.getSolventOmega();
     T adOmega = parameters.getTemperatureOmega();
@@ -473,8 +479,9 @@ int main(int argc, char *argv[])
             //particles
 
                     Box3D injectionDomain(adLattice.getBoundingBox());
-                    injectionDomain.z0 = 2*(nz-1)/3+1;
+                    injectionDomain.z0 = 1;
                     injectionDomain.z1 = nz-1;
+
 
 
                       MultiParticleField3D<DenseParticleField3D<T,ADESCRIPTOR> >* particles=0;
@@ -501,19 +508,43 @@ int main(int argc, char *argv[])
                               adLattice.getBoundingBox(), particleFluidArg, 1);
 
 
+
+
                     // Definition of simple mass-less particles.
                     Particle3D<T,ADESCRIPTOR>* particleTemplate=0;
                     particleTemplate = new PointParticle3D<T,ADESCRIPTOR>(0, Array<T,3>(0.,0.,0.), Array<T,3>(0.,0.,0.));
 
 
-                    //integrateProcessingFunctional (
-                      //      new AnalyticalInjectRandomParticlesFunctional3D<T,NSDESCRIPTOR,BoxInjection> (
-                        //        particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
-                        //    upper, particleArg, 0 );
+
+
+                    integrateProcessingFunctional (
+                                  new AnalyticalInjectRandomParticlesFunctional3D<T,ADESCRIPTOR,BoxInjection> (
+                                  particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
+                                  injectionDomain, particleArg, 0);
+
+                    integrateProcessingFunctional (
+                                  new TagProcessor3D<T,ADESCRIPTOR>,
+                                  adLattice.getBoundingBox(), particleFluidArg, 0);
+
 
                     integrateProcessingFunctional (
                                     new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
-                                    absorb, particleArg, 0);
+                                    bottom, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    top, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    left, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    right, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    front, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    back, particleArg, 0);
 
 
 
@@ -541,14 +572,6 @@ int main(int argc, char *argv[])
     for (iT = 0; iT <= maxT; ++iT)
     {
 
-      if (iT == 10) {
-        integrateProcessingFunctional (
-                new AnalyticalInjectRandomParticlesFunctional3D<T,ADESCRIPTOR,BoxInjection> (
-                    particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
-                injectionDomain, particleArg, 0);
-
-                particles->executeInternalProcessors();
-      }
         if (iT == (evalTime))
         {
             T tEval = global::timer("simTime").stop();
