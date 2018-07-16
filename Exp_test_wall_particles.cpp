@@ -93,8 +93,8 @@ struct IniVolFracProcessor3D : public BoxProcessingFunctional3D_L<T,adDescriptor
                           T rand_val=(double)rand()/RAND_MAX;
                           T amplitude=0.5;
 
-                          kx=(2*3.1416)/(nx/1);
-                          ky=(2*3.1416)/(ny/2);
+                          kx=(2*3.1416)/(nx/2);
+                          ky=(2*3.1416)/(ny/5);
 
 
     			if (absoluteZ==(nz-1)-(int)((up/(up+low))*nz)) {
@@ -189,8 +189,8 @@ void ExpSetup (
         MultiBlockLattice3D<T, NSDESCRIPTOR>& nsLattice,
         MultiBlockLattice3D<T, ADESCRIPTOR>& adLattice,
         MultiBlockLattice3D<T, ADESCRIPTOR>& deLattice,
-        OnLatticeBoundaryCondition3D<T,NSDESCRIPTOR>& nsBoundaryCondition,
-        /*OnLatticeAdvectionDiffusionBoundaryCondition3D<T,ADESCRIPTOR>& adBoundaryCondition,
+        /*OnLatticeBoundaryCondition3D<T,NSDESCRIPTOR>& nsBoundaryCondition,
+        OnLatticeAdvectionDiffusionBoundaryCondition3D<T,ADESCRIPTOR>& adBoundaryCondition,
         OnLatticeAdvectionDiffusionBoundaryCondition3D<T,ADESCRIPTOR>& deBoundaryCondition,*/
         RayleighTaylorFlowParam<T,NSDESCRIPTOR,ADESCRIPTOR> &parameters )
 {
@@ -213,12 +213,12 @@ void ExpSetup (
     T rho0f = 0.;
 
 
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, top, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, bottom, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, front, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, back, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, left, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, right, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, top, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, bottom, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, front, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, back, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, left, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, right, boundary::dirichlet );
 
 
     //defineDynamics(nsLattice, nsLattice.getBoundingBox(), new BounceBack<T, NSDESCRIPTOR> (rho0f) );
@@ -226,13 +226,12 @@ void ExpSetup (
   //  defineDynamics(deLattice, deLattice.getBoundingBox(), new BounceBack<T, ADESCRIPTOR> (rho0f) );
 
 
-    //defineDynamics(nsLattice, top, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, bottom, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, right, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, left, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, front, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, back, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-
+    defineDynamics(nsLattice, top, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, bottom, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, right, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, left, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, front, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, back, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
 
     defineDynamics(adLattice, top, new BounceBack<T, ADESCRIPTOR>(rho0f) );
     defineDynamics(adLattice, bottom, new BounceBack<T, ADESCRIPTOR>(rho0f) );
@@ -269,7 +268,7 @@ void ExpSetup (
       //deBoundaryCondition.addTemperatureBoundary2P (top, deLattice, boundary::freeslip);
 
 
-      //deBoundaryCondition.setTemperatureConditionOnBlockBoundaries(deLattice, deLattice.getBoundingBox(), boundary::neumann );
+      //deBoundaryCondition.setTemperatureConditionOn2BlockBoundaries(deLattice, deLattice.getBoundingBox(), boundary::neumann );
       //deBoundaryCondition.setTemperatureConditionOnBlockBoundaries(deLattice, bottom, boundary::neumann );
       //setBoundaryDensity(deLattice, deLattice.getBoundingBox(), 1. );
 
@@ -341,7 +340,7 @@ void writeGif(MultiBlockLattice3D<T,NSDESCRIPTOR>& nsLattice,
 
 plint particleTimeFactor = 1;
 T particleProbabilityPerCell = 1;   // Probability of injecting a particle into an injection cell at each time step.
-T cutOffSpeedSqr = 1.e-4; // Criterion to eliminate particles with very small velocity.
+T cutOffSpeedSqr = 1e-6; // Criterion to eliminate particles with very small velocity.
 
 
 class BoxInjection {
@@ -355,9 +354,9 @@ public:
       plint nz = parameters.getNz();
       bool inj;
 
-        if (pos[0] < nx && pos[0] > 0) {
-          if (pos[1] < ny && pos[1] > 0) {
-            if (pos[2] < nz && pos[2] > 2*(nz-1)/3+1) {
+        if (pos[0] < nx-1 && pos[0] > 1) {
+          if (pos[1] < ny-1 && pos[1] > 1) {
+            if (pos[2] < nz-1 && pos[2] > 1) {
               inj=true;
             }
           }
@@ -386,7 +385,7 @@ int main(int argc, char *argv[])
     //const T Kappa = 1e-6;
     const T Ri = 11.1;
 
-    const plint resolution = 75;
+    const plint resolution = 250;
 
     global::directories().setOutputDir("./tmp/");
 
@@ -416,8 +415,18 @@ int main(int argc, char *argv[])
     plint ny = parameters.getNy();
     plint nz = parameters.getNz();
 
-    Box3D upper(1, nx, 1, ny, 2*(nz-1)/3+1, nz);
-    Box3D absorb(1,nx,1,ny,1,1);
+
+
+    Box3D bottom(0,nx-1,0,ny-1,0,1);
+    Box3D top(0,nx-1,0,ny-1,nz-2,nz-1);
+
+    Box3D front(nx-2,nx-1,0,ny-1,1,nz-2);
+    Box3D back(0,1,0,ny-1,1,nz-2);
+
+    Box3D left(0,nx-1,0,1,1,nz-2);
+    Box3D right(0,nx-1,ny-2,ny,1,nz-2);
+
+    Box3D fluidDomain(1, nx-2, 1, ny-2, 1, nz-2);
 
     T nsOmega = parameters.getSolventOmega();
     T adOmega = parameters.getTemperatureOmega();
@@ -430,7 +439,7 @@ int main(int argc, char *argv[])
     MultiBlockLattice3D<T, ADESCRIPTOR> adLattice (
             nx,ny,nz,new ADYNAMICS<T, ADESCRIPTOR>(adOmega) );
 
-    OnLatticeBoundaryCondition3D<T, NSDESCRIPTOR>* nsBoundaryCondition = createLocalBoundaryCondition3D<T, NSDESCRIPTOR>();
+    //OnLatticeBoundaryCondition3D<T, NSDESCRIPTOR>* nsBoundaryCondition = createLocalBoundaryCondition3D<T, NSDESCRIPTOR>();
 
 
     MultiBlockLattice3D<T, ADESCRIPTOR> deLattice (
@@ -442,7 +451,7 @@ int main(int argc, char *argv[])
     adLattice.toggleInternalStatistics(false);
     deLattice.toggleInternalStatistics(false);
 
-    ExpSetup(nsLattice, adLattice, deLattice, *nsBoundaryCondition, /*adBoundaryCondition, *deBoundaryCondition,*/ parameters);
+    ExpSetup(nsLattice, adLattice, deLattice, /**nsBoundaryCondition, adBoundaryCondition, *deBoundaryCondition,*/ parameters);
 
       Array<T,NSDESCRIPTOR<T>::d> forceOrientation(T(),T(),(T)1);
 
@@ -469,6 +478,11 @@ int main(int argc, char *argv[])
 
             //particles
 
+                    Box3D injectionDomain(adLattice.getBoundingBox());
+                    injectionDomain.z0 = 1;
+                    injectionDomain.z1 = nz-1;
+
+
 
                       MultiParticleField3D<DenseParticleField3D<T,ADESCRIPTOR> >* particles=0;
                       particles = new MultiParticleField3D<DenseParticleField3D<T,ADESCRIPTOR> > (
@@ -484,14 +498,16 @@ int main(int argc, char *argv[])
 
                       // Functional that advances the particles to their new position at each
                       //   predefined time step.
-                      applyProcessingFunctional (
+                      integrateProcessingFunctional (
                               new AdvanceParticlesEveryWhereFunctional3D<T,ADESCRIPTOR>(cutOffSpeedSqr),
-                              adLattice.getBoundingBox(), particleArg);
+                              fluidDomain, particleArg, 0);
                       // Functional that assigns the particle velocity according to the particle's
                       //   position in the fluid.
                       integrateProcessingFunctional (
                               new FluidToParticleCoupling3D<T,ADESCRIPTOR>((T)particleTimeFactor),
-                              adLattice.getBoundingBox(), particleFluidArg, 0 );
+                              fluidDomain, particleFluidArg, 1);
+
+
 
 
                     // Definition of simple mass-less particles.
@@ -499,14 +515,38 @@ int main(int argc, char *argv[])
                     particleTemplate = new PointParticle3D<T,ADESCRIPTOR>(0, Array<T,3>(0.,0.,0.), Array<T,3>(0.,0.,0.));
 
 
-                    //integrateProcessingFunctional (
-                      //      new AnalyticalInjectRandomParticlesFunctional3D<T,NSDESCRIPTOR,BoxInjection> (
-                        //        particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
-                        //    upper, particleArg, 0 );
 
-                    applyProcessingFunctional (
+
+                    integrateProcessingFunctional (
+                                  new AnalyticalInjectRandomParticlesFunctional3D<T,ADESCRIPTOR,BoxInjection> (
+                                  particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
+                                  injectionDomain, particleArg, 0);
+
+                    integrateProcessingFunctional (
+                                  new TagProcessor3D<T,ADESCRIPTOR> (),
+                                  fluidDomain, particleFluidArg, 0);
+
+
+                    integrateProcessingFunctional (
                                     new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
-                                    absorb, particleArg);
+                                    bottom, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    top, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    left, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    right, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    front, particleArg, 0);
+                    integrateProcessingFunctional (
+                                    new AbsorbParticlesFunctional3D<T,ADESCRIPTOR>,
+                                    back, particleArg, 0);
+
+
 
 
 
@@ -521,7 +561,7 @@ int main(int argc, char *argv[])
 
     plint evalTime =5000;
     plint iT = 0;
-    plint maxT = 4000000;
+    plint maxT = 2000000;
 
     //plint statIter = 1;
     plint saveIter = 5000;
@@ -532,12 +572,6 @@ int main(int argc, char *argv[])
     for (iT = 0; iT <= maxT; ++iT)
     {
 
-      if (iT == 2) {
-        applyProcessingFunctional (
-                new AnalyticalInjectRandomParticlesFunctional3D<T,ADESCRIPTOR,BoxInjection> (
-                    particleTemplate, particleProbabilityPerCell, BoxInjection(parameters) ),
-                upper, particleArg);
-      }
         if (iT == (evalTime))
         {
             T tEval = global::timer("simTime").stop();
@@ -546,36 +580,7 @@ int main(int argc, char *argv[])
             pcout << "Remaining " << (plint)remainTime << " hours, and ";
             pcout << (plint)((T)60*(remainTime - (T)((plint)remainTime))+0.5) << " minutes." << endl;
         }
-//        if (iT == statIter)<100
-//        {
 //
-//		Kappa=0;
-//            int zDirection = 2;
-//            T nusselt = computeNusseltNumber (
-//                            nsLattice, adLattice,
-//                            nsLattice.getBoundingBox(),
-//                            zDirection, parameters.getDeltaX(),
-//                            param125eters.getLatticeKappa(), parameters.getDeltaTemperature());
-//            converge.takeValue(nusselt,true);
-//        }
-//        if (converge.hasConverged())
-//        {
-//            if (!convergedOnce)
-//            {
-//                convergedOnce = true;
-//                converge.resetValues();
-//                converge.setEpsilon(1.0e-14);
-//                applyProcessingFunctional(
-//                    new PerturbVolFracityProcessor3D<T,NSDESCRIPTOR,ADESCRIPTOR>(parameters),
-//                    adLattice.getBoundingBox(),adLattice);
-//                pcout << "Intermetiate convergence.\n";
-//            }
-//            else
-//            {
-//                pcout << "Simulation is over.\n";
-//                break;
-//            }
-//        }
 
 
         if (iT % saveIter == 0)
@@ -583,6 +588,7 @@ int main(int argc, char *argv[])
 
           pcout << "Number of particles in the tank: "
                 << countParticles(*particles, particles->getBoundingBox()) << std::endl;
+
             pcout << iT * parameters.getDeltaT() << " : Writing VTK." << endl;
             writeVTK(nsLattice, adLattice,deLattice, parameters, iT);
             //pcout << "The NS average energy is " << computeAverageEnergy(nsLattice, upper) << endl;
@@ -593,9 +599,9 @@ int main(int argc, char *argv[])
             pcout << "Write visualization files." << std::endl;
             VtkImageOutput3D<T> vtkOut("volume", 1.);
             pcout << "Write particle output file." << endl;
-            writeAsciiParticlePos(*particles, "particle_positions.dat");
             T dx = parameters.getDeltaX();
-            writeParticleVtk(*particles, "particles.vtk", dx, 2000);
+            writeAsciiParticlePos(*particles, "particle_positions.dat", dx);
+            writeParticleVtk(*particles, "particles_pos.vtk", dx, 5000);
         }
 
         // Lattice Boltzmann iteration step.
@@ -605,9 +611,6 @@ int main(int argc, char *argv[])
         particles->executeInternalProcessors();
 
 
-        particleArg.push_back(particles);
-        particleFluidArg.push_back(particles);
-        particleFluidArg.push_back(&adLattice);
 
     }
 
