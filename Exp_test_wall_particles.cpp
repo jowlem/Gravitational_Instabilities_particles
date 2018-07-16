@@ -93,8 +93,8 @@ struct IniVolFracProcessor3D : public BoxProcessingFunctional3D_L<T,adDescriptor
                           T rand_val=(double)rand()/RAND_MAX;
                           T amplitude=0.5;
 
-                          kx=(2*3.1416)/(nx/1);
-                          ky=(2*3.1416)/(ny/2);
+                          kx=(2*3.1416)/(nx/2);
+                          ky=(2*3.1416)/(ny/5);
 
 
     			if (absoluteZ==(nz-1)-(int)((up/(up+low))*nz)) {
@@ -189,8 +189,8 @@ void ExpSetup (
         MultiBlockLattice3D<T, NSDESCRIPTOR>& nsLattice,
         MultiBlockLattice3D<T, ADESCRIPTOR>& adLattice,
         MultiBlockLattice3D<T, ADESCRIPTOR>& deLattice,
-        OnLatticeBoundaryCondition3D<T,NSDESCRIPTOR>& nsBoundaryCondition,
-        /*OnLatticeAdvectionDiffusionBoundaryCondition3D<T,ADESCRIPTOR>& adBoundaryCondition,
+        /*OnLatticeBoundaryCondition3D<T,NSDESCRIPTOR>& nsBoundaryCondition,
+        OnLatticeAdvectionDiffusionBoundaryCondition3D<T,ADESCRIPTOR>& adBoundaryCondition,
         OnLatticeAdvectionDiffusionBoundaryCondition3D<T,ADESCRIPTOR>& deBoundaryCondition,*/
         RayleighTaylorFlowParam<T,NSDESCRIPTOR,ADESCRIPTOR> &parameters )
 {
@@ -213,12 +213,12 @@ void ExpSetup (
     T rho0f = 0.;
 
 
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, top, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, bottom, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, front, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, back, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, left, boundary::dirichlet );
-    nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, right, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, top, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, bottom, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, front, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, back, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, left, boundary::dirichlet );
+    //nsBoundaryCondition.setVelocityConditionOnBlockBoundaries (nsLattice, right, boundary::dirichlet );
 
 
     //defineDynamics(nsLattice, nsLattice.getBoundingBox(), new BounceBack<T, NSDESCRIPTOR> (rho0f) );
@@ -226,13 +226,12 @@ void ExpSetup (
   //  defineDynamics(deLattice, deLattice.getBoundingBox(), new BounceBack<T, ADESCRIPTOR> (rho0f) );
 
 
-    //defineDynamics(nsLattice, top, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, bottom, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, right, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, left, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, front, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-    //defineDynamics(nsLattice, back, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
-
+    defineDynamics(nsLattice, top, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, bottom, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, right, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, left, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, front, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
+    defineDynamics(nsLattice, back, new BounceBack<T, NSDESCRIPTOR>(rho0f) );
 
     defineDynamics(adLattice, top, new BounceBack<T, ADESCRIPTOR>(rho0f) );
     defineDynamics(adLattice, bottom, new BounceBack<T, ADESCRIPTOR>(rho0f) );
@@ -269,7 +268,7 @@ void ExpSetup (
       //deBoundaryCondition.addTemperatureBoundary2P (top, deLattice, boundary::freeslip);
 
 
-      //deBoundaryCondition.setTemperatureConditionOnBlockBoundaries(deLattice, deLattice.getBoundingBox(), boundary::neumann );
+      //deBoundaryCondition.setTemperatureConditionOn2BlockBoundaries(deLattice, deLattice.getBoundingBox(), boundary::neumann );
       //deBoundaryCondition.setTemperatureConditionOnBlockBoundaries(deLattice, bottom, boundary::neumann );
       //setBoundaryDensity(deLattice, deLattice.getBoundingBox(), 1. );
 
@@ -386,7 +385,7 @@ int main(int argc, char *argv[])
     //const T Kappa = 1e-6;
     const T Ri = 11.1;
 
-    const plint resolution = 75;
+    const plint resolution = 250;
 
     global::directories().setOutputDir("./tmp/");
 
@@ -417,16 +416,17 @@ int main(int argc, char *argv[])
     plint nz = parameters.getNz();
 
 
-    Box3D upper(1, nx, 1, ny, 2*(nz-1)/3+1, nz);
-    Box3D lower(1, nx, 1, ny, 0, 2*(nz-1)/3);
-    Box3D bottom(0,nx-1,0,ny-1,0,0);
-    Box3D top(0,nx-1,0,ny-1,nz-1,nz-1);
 
-    Box3D front(nx-1,nx-1,0,ny-1,1,nz-2);
-    Box3D back(0,0,0,ny-1,1,nz-2);
+    Box3D bottom(0,nx-1,0,ny-1,0,1);
+    Box3D top(0,nx-1,0,ny-1,nz-2,nz-1);
 
-    Box3D left(0,nx-1,0,0,1,nz-2);
-    Box3D right(0,nx-1,ny-1,ny-1,1,nz-2);
+    Box3D front(nx-2,nx-1,0,ny-1,1,nz-2);
+    Box3D back(0,1,0,ny-1,1,nz-2);
+
+    Box3D left(0,nx-1,0,1,1,nz-2);
+    Box3D right(0,nx-1,ny-2,ny,1,nz-2);
+
+    Box3D fluidDomain(1, nx-2, 1, ny-2, 1, nz-2);
 
     T nsOmega = parameters.getSolventOmega();
     T adOmega = parameters.getTemperatureOmega();
@@ -439,7 +439,7 @@ int main(int argc, char *argv[])
     MultiBlockLattice3D<T, ADESCRIPTOR> adLattice (
             nx,ny,nz,new ADYNAMICS<T, ADESCRIPTOR>(adOmega) );
 
-    OnLatticeBoundaryCondition3D<T, NSDESCRIPTOR>* nsBoundaryCondition = createLocalBoundaryCondition3D<T, NSDESCRIPTOR>();
+    //OnLatticeBoundaryCondition3D<T, NSDESCRIPTOR>* nsBoundaryCondition = createLocalBoundaryCondition3D<T, NSDESCRIPTOR>();
 
 
     MultiBlockLattice3D<T, ADESCRIPTOR> deLattice (
@@ -451,7 +451,7 @@ int main(int argc, char *argv[])
     adLattice.toggleInternalStatistics(false);
     deLattice.toggleInternalStatistics(false);
 
-    ExpSetup(nsLattice, adLattice, deLattice, *nsBoundaryCondition, /*adBoundaryCondition, *deBoundaryCondition,*/ parameters);
+    ExpSetup(nsLattice, adLattice, deLattice, /**nsBoundaryCondition, adBoundaryCondition, *deBoundaryCondition,*/ parameters);
 
       Array<T,NSDESCRIPTOR<T>::d> forceOrientation(T(),T(),(T)1);
 
@@ -500,12 +500,12 @@ int main(int argc, char *argv[])
                       //   predefined time step.
                       integrateProcessingFunctional (
                               new AdvanceParticlesEveryWhereFunctional3D<T,ADESCRIPTOR>(cutOffSpeedSqr),
-                              adLattice.getBoundingBox(), particleArg, 0);
+                              fluidDomain, particleArg, 0);
                       // Functional that assigns the particle velocity according to the particle's
                       //   position in the fluid.
                       integrateProcessingFunctional (
                               new FluidToParticleCoupling3D<T,ADESCRIPTOR>((T)particleTimeFactor),
-                              adLattice.getBoundingBox(), particleFluidArg, 1);
+                              fluidDomain, particleFluidArg, 1);
 
 
 
@@ -523,8 +523,8 @@ int main(int argc, char *argv[])
                                   injectionDomain, particleArg, 0);
 
                     integrateProcessingFunctional (
-                                  new TagProcessor3D<T,ADESCRIPTOR>,
-                                  adLattice.getBoundingBox(), particleFluidArg, 0);
+                                  new TagProcessor3D<T,ADESCRIPTOR> (),
+                                  fluidDomain, particleFluidArg, 0);
 
 
                     integrateProcessingFunctional (
