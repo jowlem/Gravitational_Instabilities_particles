@@ -561,7 +561,7 @@ int main(int argc, char *argv[])
 
     plint evalTime =5000;
     plint iT = 0;
-    plint maxT = 4000000;
+    plint maxT = 2000000;
 
     //plint statIter = 1;
     plint saveIter = 5000;
